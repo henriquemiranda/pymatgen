@@ -3266,7 +3266,7 @@ class RelaxTask(GsTask, ProduceHist):
         # FIXME Here we should read the HIST file but restartxf if broken!
         #self.set_vars({"restartxf": -1})
 
-        # Read the relaxed structure from the GSR file and change the input.
+        7# Read the relaxed structure from the GSR file and change the input.
         self._change_structure(self.get_final_structure())
 
         # Now we can resubmit the job.
@@ -3509,7 +3509,8 @@ class DdkTask(DfptTask):
         # Fixing this problem requires a rationalization of file extensions.
         #if self.outdir.rename_abiext('1WF', 'DDK') > 0:
         #if self.outdir.copy_abiext('1WF', 'DDK') > 0:
-        self.outdir.symlink_abiext('1WF', 'DDK')
+        if self.outdir.has_abiext('1WF'):
+            self.outdir.symlink_abiext('1WF', 'DDK')
 
     def get_results(self, **kwargs):
         results = super(DdkTask, self).get_results(**kwargs)
@@ -3638,7 +3639,7 @@ class PhononTask(DfptTask):
         #    self.indir.rename_abiext('DDK', '1WF')
 
 
-class EphTask(AbinitTask):
+class DfptEphTask(AbinitTask):
     """
     Class for electron-phonon calculations.
     """
@@ -3667,8 +3668,8 @@ class EphTask(AbinitTask):
                 den_case = idir +  3 * rfatpol
 
                 #TODO: make this a bit nicer (only for testing ATM)
-                out_den = dep.node.outdir.path_in("out_DEN%d.nc" % den_case)
-                infile = self.indir.path_in("in_DEN.nc")
+                out_den = dep.node.outdir.path_in("out_DEN%d" % den_case)
+                infile = self.indir.path_in("in_DEN%d" % den_case)
                 os.symlink(out_den, infile)
 
             elif dep.exts == ["WFK"]:
@@ -3677,11 +3678,62 @@ class EphTask(AbinitTask):
                 if not out_wfk:
                     raise RuntimeError("%s didn't produce the WFK file" % gs_task)
 
-                os.symlink(out_wfk, self.indir.path_in("in_WFK.nc"))
+                os.symlink(out_wfk, self.indir.path_in("in_WFK"))
 
             else:
                 raise ValueError("Don't know how to handle extension: %s" % dep.exts)
 
+class EphTask(AbinitTask):
+    """
+    Class for electron-phonon calculations.
+    """
+    color_rgb = np.array((255, 128, 0)) / 255
+
+    def make_links(self):
+        """Replace the default behaviour of make_links"""
+
+        for dep in self.deps:
+            for d in dep.exts:
+                if d == "DVDB":
+                    phonon_task = dep.node
+                    out_dvddb = phonon_task.outdir.has_abiext("DVDB")
+                    in_dvddb  = self.indir.path_in('in_DVDB')
+                    os.symlink(out_dvddb, in_dvddb)
+
+                elif d == "DDB":
+                    phonon_task = dep.node
+                    out_ddb = phonon_task.outdir.has_abiext("DDB")
+                    in_ddb  = self.indir.path_in('in_DDB')
+                    os.symlink(out_ddb, in_ddb)
+
+                elif d == "WFK":
+                    nscf_task = dep.node
+
+                    #get out
+                    out_WFK = nscf_task.outdir.has_abiext("WFK")
+                    if not out_WFK:
+                        raise RuntimeError("%s didn't produce the WFK file" % nscf_task)
+                    #get in
+                    in_WFK  = self.indir.path_in('in_WFK')
+                    
+                    os.symlink(out_WFK, in_WFK)
+
+                elif d == "WFQ":
+                    nscf_task = dep.node
+
+                    #get out
+                    out_WFQ = nscf_task.outdir.has_abiext("WFQ")
+                    if not out_WFQ:
+                        out_WFQ = nscf_task.outdir.has_abiext("WFK")
+                    if not out_WFQ:
+                        raise RuntimeError("%s didn't produce the WFQ neither a WFK file" % nscf_task)
+                    #get in
+                    in_WFQ = self.indir.path_in('in_WFQ')
+
+                    os.symlink(out_WFQ, in_WFQ)
+
+                else:
+                    raise ValueError("Don't know how to handle extension: %s" % dep.exts)
 
 class ManyBodyTask(AbinitTask):
     """
