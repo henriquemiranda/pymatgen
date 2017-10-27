@@ -20,7 +20,7 @@ from monty.json import MSONable
 from pymatgen.core.units import ArrayWithUnit
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
-from pymatgen.serializers.json_coders import pmg_serialize
+from pymatgen.util.serialization import pmg_serialize
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from monty.json import MontyEncoder, MontyDecoder
 
@@ -626,13 +626,11 @@ class KSampling(AbivarAble, MSONable):
             if len(kpts) != num_kpts:
                 raise ValueError("For Automatic mode, num_kpts must be specified.")
 
-            kptnrm = np.ones(num_kpts)
-
             abivars.update({
                 "kptopt"     : 0,
                 "kpt"        : kpts,
                 "nkpt"       : num_kpts,
-                "kptnrm"     : kptnrm,
+                "kptnrm"     : np.ones(num_kpts),
                 "wtk"        : kpts_weights,  # for iscf/=-2, wtk.
                 "chksymbreak": chksymbreak,
             })

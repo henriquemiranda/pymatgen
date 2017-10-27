@@ -15,7 +15,7 @@ from numpy import pi, dot, transpose, radians
 
 from monty.json import MSONable
 from monty.dev import deprecated
-from pymatgen.util.coord_utils import pbc_shortest_vectors
+from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.num import abs_cap
 
 """
@@ -296,7 +296,7 @@ class Lattice(MSONable):
         """
         Create a Lattice from a dictionary containing the a, b, c, alpha, beta,
         and gamma parameters if fmt is None.
-        
+
         If fmt == "abivars", the function build a `Lattice` object from a
         dictionary with the Abinit variables `acell` and `rprim` in Bohr.
         If acell is not given, the Abinit default is used i.e. [1,1,1] Bohr

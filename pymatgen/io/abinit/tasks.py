@@ -26,7 +26,7 @@ from monty.functools import lazy_property, return_none_if_raise
 from monty.json import MSONable
 from monty.fnmatch import WildCard
 from pymatgen.core.units import Memory
-from pymatgen.serializers.json_coders import json_pretty_dump, pmg_serialize
+from pymatgen.util.serialization import json_pretty_dump, pmg_serialize
 from .utils import File, Directory, irdvars_for_ext, abi_splitext, FilepathFixer, Condition, SparseHistogram
 from .qadapters import make_qadapter, QueueAdapter, QueueAdapterError
 from . import qutils as qu
@@ -688,6 +688,11 @@ batch_adapter:
         if kwargs:
             raise ValueError("Found invalid keywords in the taskmanager file:\n %s" % str(list(kwargs.keys())))
 
+    @lazy_property
+    def abinit_build(self):
+        """:class:`AbinitBuild` object with Abinit version and options used to build the code"""
+        return AbinitBuild(manager=self)
+
     def to_shell_manager(self, mpi_procs=1):
         """
         Returns a new `TaskManager` with the same parameters as self but replace the :class:`QueueAdapter`
@@ -1170,6 +1175,18 @@ class AbinitBuild(object):
         app("    Netcdf: %s" % self.has_netcdf)
         return "\n".join(lines)
 
+    def version_ge(self, version_string):
+        """True is Abinit version is >= version_string"""
+        return self.compare_version(version_string, ">=")
+
+    def compare_version(self, version_string, op):
+        """Compare Abinit version to `version_string` with operator `op`"""
+        from pkg_resources import parse_version
+        from monty.operator import operator_from_str
+        op = operator_from_str(op)
+        return op(parse_version(self.version), parse_version(version_string))
+
+
 
 class FakeProcess(object):
     """
@@ -1473,7 +1490,8 @@ class Task(six.with_metaclass(abc.ABCMeta, Node)):
         """
         return os.path.join(self.workdir, self.prefix.odata + "_" + ext)
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def executable(self):
         """
         Path to the executable associated to the task (internally stored in self._executable).

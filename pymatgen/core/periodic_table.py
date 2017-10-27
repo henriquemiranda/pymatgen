@@ -198,6 +198,15 @@ class Element(Enum):
         E.g., The electronic structure for Fe is represented as
         [Ar].3d<sup>6</sup>.4s<sup>2</sup>
 
+    .. attribute:: atomic_orbitals
+
+        Atomic Orbitals. Energy of the atomic orbitals as a dict.
+        E.g., The orbitals energies in eV are represented as
+        {'1s': -1.0, '2s': -0.1}
+        Data is obtained from
+        https://www.nist.gov/pml/data/atomic-reference-data-electronic-structure-calculations
+        The LDA values for neutral atoms are used    
+
     .. attribute:: thermal_conductivity
 
         Thermal conductivity
@@ -409,30 +418,34 @@ class Element(Enum):
                     "brinell_hardness", "rigidity_modulus",
                     "mineral_hardness", "vickers_hardness",
                     "density_of_solid", "atomic_radius_calculated",
-                    "van_der_waals_radius",
+                    "van_der_waals_radius", "atomic_orbitals",
                     "coefficient_of_linear_thermal_expansion"]:
             kstr = item.capitalize().replace("_", " ")
             val = self._data.get(kstr, None)
             if str(val).startswith("no data"):
                 val = None
+            elif type(val) == dict:
+                pass
             else:
                 try:
                     val = float(val)
                 except ValueError:
-                    toks_nobracket = re.sub(r'\(.*\)', "", val)
-                    toks = toks_nobracket.replace("about", "").strip().split(
-                        " ", 1)
+                    nobracket = re.sub(r'\(.*\)', "", val)
+                    toks = nobracket.replace("about", "").strip().split(" ", 1)
                     if len(toks) == 2:
                         try:
                             if "10<sup>" in toks[1]:
                                 base_power = re.findall(r'([+-]?\d+)', toks[1])
                                 factor = "e" + base_power[1]
+                                if toks[0] in ["&gt;", "high"]:
+                                    toks[0] = "1" # return the border value
                                 toks[0] += factor
                                 if item == "electrical_resistivity":
                                     unit = "ohm m"
-                                elif item == \
-                                        "coefficient_of_linear_thermal_" \
-                                        "expansion":
+                                elif (
+                                    item ==
+                                    "coefficient_of_linear_thermal_expansion"
+                                ):
                                     unit = "K^-1"
                                 else:
                                     unit = toks[1]
@@ -511,6 +524,12 @@ class Element(Enum):
     def common_oxidation_states(self):
         """Tuple of all known oxidation states"""
         return tuple(self._data.get("Common oxidation states", list()))
+
+    @property
+    def icsd_oxidation_states(self):
+        """Tuple of all oxidation states with at least 10 instances in
+        ICSD database AND at least 1% of entries for that element"""
+        return tuple(self._data.get("ICSD oxidation states", list()))
 
     @property
     def full_electronic_structure(self):
@@ -853,7 +872,7 @@ class Specie(MSONable):
 
     supported_properties = ("spin",)
 
-    def __init__(self, symbol, oxidation_state, properties=None):
+    def __init__(self, symbol, oxidation_state=None, properties=None):
         self._el = Element(symbol)
         self._oxi_state = oxidation_state
         self._properties = properties if properties else {}
@@ -862,7 +881,7 @@ class Specie(MSONable):
                 raise ValueError("{} is not a supported property".format(k))
 
     def __getattr__(self, a):
-        # overriding getattr doens't play nice with pickle, so we
+        # overriding getattr doesn't play nice with pickle, so we
         # can't use self._properties
         p = object.__getattribute__(self, '_properties')
         if a in p:
@@ -878,7 +897,7 @@ class Specie(MSONable):
         exactly the same.
         """
         return isinstance(other, Specie) and self.symbol == other.symbol \
-            and self._oxi_state == other._oxi_state \
+            and self.oxi_state == other.oxi_state \
             and self._properties == other._properties
 
     def __ne__(self, other):
@@ -886,11 +905,11 @@ class Specie(MSONable):
 
     def __hash__(self):
         """
-        Given that all oxidation states are below 100 in absolute value, this
-        should effectively ensure that no two unequal Specie have the same
-        hash.
+        Equal Specie should have the same str representation, hence
+        should hash equally. Unequal Specie will have differnt str
+        representations.
         """
-        return self._el.Z * 1000 + int(self._oxi_state)
+        return self.__str__().__hash__()
 
     def __lt__(self, other):
         """
@@ -964,7 +983,7 @@ class Specie(MSONable):
             oxi = -oxi if m.group(3) == "-" else oxi
             properties = None
             if m.group(4):
-                toks = m.group(4).split("=")
+                toks = m.group(4).replace(",","").split("=")
                 properties = {toks[0]: float(toks[1])}
             return Specie(sym, oxi, properties)
         else:
@@ -975,12 +994,13 @@ class Specie(MSONable):
 
     def __str__(self):
         output = self.symbol
-        if self._oxi_state >= 0:
-            output += formula_double_format(self._oxi_state) + "+"
-        else:
-            output += formula_double_format(-self._oxi_state) + "-"
+        if self.oxi_state is not None:
+            if self.oxi_state >= 0:
+                output += formula_double_format(self.oxi_state) + "+"
+            else:
+                output += formula_double_format(-self.oxi_state) + "-"
         for p, v in self._properties.items():
-            output += "%s=%s" % (p, v)
+            output += ",%s=%s" % (p, v)
         return output
 
     def get_crystal_field_spin(self, coordination="oct", spin_config="high"):
@@ -1009,7 +1029,7 @@ class Specie(MSONable):
                 "Invalid element {} for crystal field calculation.".format(
                     self.symbol))
         nelectrons = elec[-1][2] + elec[-2][2] - self.oxi_state
-        if nelectrons < 0:
+        if nelectrons < 0 or nelectrons > 10:
             raise AttributeError(
                 "Invalid oxidation state {} for element {}"
                 .format(self.oxi_state, self.symbol))
@@ -1113,7 +1133,7 @@ class DummySpecie(Specie):
             raise AttributeError(a)
 
     def __hash__(self):
-        return 1
+        return self.symbol.__hash__()
 
     def __eq__(self, other):
         """
@@ -1146,9 +1166,11 @@ class DummySpecie(Specie):
     @property
     def Z(self):
         """
-        DummySpecie is always assigned an atomic number of 0.
+        DummySpecie is always assigned an atomic number equal to the hash of
+        the symbol. The expectation is that someone would be an actual dummy
+        to use atomic numbers for a Dummy specie.
         """
-        return 0
+        return self.symbol.__hash__()
 
     @property
     def oxi_state(self):
@@ -1160,7 +1182,8 @@ class DummySpecie(Specie):
     @property
     def X(self):
         """
-        DummySpecie is always assigned an electronegativity of 0.
+        DummySpecie is always assigned an electronegativity of 0. The effect of
+        this is that DummySpecie are always sorted in front of actual Specie.
         """
         return 0
 
@@ -1186,7 +1209,7 @@ class DummySpecie(Specie):
         Raises:
             ValueError if species_string cannot be intepreted.
         """
-        m = re.search(r"([A-Z][a-z]*)([0-9\.]*)([\+\-]*)(.*)", species_string)
+        m = re.search(r"([A-Z][a-z]*)([0-9.]*)([+\-]*)(.*)", species_string)
         if m:
             sym = m.group(1)
             if m.group(2) == "" and m.group(3) == "":
@@ -1267,6 +1290,9 @@ def get_el_sp(obj):
     """
     if isinstance(obj, (Element, Specie, DummySpecie)):
         return obj
+
+    if isinstance(obj, (list, tuple)):
+        return [get_el_sp(o) for o in obj]
 
     try:
         c = float(obj)
