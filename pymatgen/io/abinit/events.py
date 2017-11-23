@@ -25,7 +25,7 @@ from monty.inspect import all_subclasses
 from monty.json import MontyDecoder
 from pymatgen.core.structure import Structure
 from monty.json import MSONable
-from pymatgen.serializers.json_coders import pmg_serialize
+from pymatgen.util.serialization import pmg_serialize
 from .abiinspect import YamlTokenizer
 
 logger = logging.getLogger(__name__)
@@ -418,14 +418,16 @@ class EventsParser(object):
         report = EventReport(filename)
 
         w = WildCard("*Error|*Warning|*Comment|*Bug|*ERROR|*WARNING|*COMMENT|*BUG")
-
+        import warnings
+        warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
         with YamlTokenizer(filename) as tokens:
             for doc in tokens:
                 if w.match(doc.tag):
                     #print("got doc.tag", doc.tag,"--")
                     try:
                         #print(doc.text)
-                        event = yaml.load(doc.text)   # Don't use safe_load here!
+                        event = yaml.load(doc.text)   # Can't use ruamel safe_load!
+                        #yaml.load(doc.text, Loader=ruamel.yaml.Loader)
                         #print(event.yaml_tag, type(event))
                     except:
                         #raise

@@ -25,10 +25,9 @@ from monty.itertools import iterator_from_slice
 from monty.json import MSONable, MontyDecoder
 from monty.os.path import find_exts
 from monty.string import list_strings, is_string
-from pymatgen.analysis.eos import EOS
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.xcfunc import XcFunc
-from pymatgen.serializers.json_coders import pmg_serialize
+from pymatgen.util.serialization import pmg_serialize
 from pymatgen.util.plotting import add_fig_kwargs, get_ax_fig_plt
 
 logger = logging.getLogger(__name__)
@@ -161,7 +160,8 @@ class Pseudo(six.with_metaclass(abc.ABCMeta, MSONable, object)):
 
         return "\n".join(lines)
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def summary(self):
         """String summarizing the most important properties."""
 
@@ -174,11 +174,13 @@ class Pseudo(six.with_metaclass(abc.ABCMeta, MSONable, object)):
         """File basename."""
         return os.path.basename(self.filepath)
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def Z(self):
         """The atomic number of the atom."""
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def Z_val(self):
         """Valence charge."""
 
@@ -199,11 +201,13 @@ class Pseudo(six.with_metaclass(abc.ABCMeta, MSONable, object)):
         """Element symbol."""
         return self.element.symbol
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def l_max(self):
         """Maximum angular momentum."""
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def l_local(self):
         """Angular momentum used for the local part."""
 
@@ -231,7 +235,8 @@ class Pseudo(six.with_metaclass(abc.ABCMeta, MSONable, object)):
             m = hashlib.md5(text.encode("utf-8"))
             return m.hexdigest()
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def supports_soc(self):
         """
         True if the pseudo can be used in a calculation with spin-orbit coupling.
@@ -305,7 +310,7 @@ class Pseudo(six.with_metaclass(abc.ABCMeta, MSONable, object)):
 
     def hint_for_accuracy(self, accuracy="normal"):
         """
-        Returns a :class:`Hint` object with the suggensted value of ecut [Ha] and
+        Returns a :class:`Hint` object with the suggested value of ecut [Ha] and
         pawecutdg [Ha] for the given accuracy.
         ecut and pawecutdg are set to zero if no hint is available.
 
@@ -383,7 +388,8 @@ class NcPseudo(six.with_metaclass(abc.ABCMeta, object)):
     by the concrete classes representing norm-conserving pseudopotentials.
     """
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def nlcc_radius(self):
         """
         Radius at which the core charge vanish (i.e. cut-off in a.u.).
@@ -423,7 +429,8 @@ class PawPseudo(six.with_metaclass(abc.ABCMeta, object)):
     #    """True if the pseudo is generated with non-linear core correction."""
     #    return True
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def paw_radius(self):
         """Radius of the PAW sphere in a.u."""
 
@@ -555,7 +562,7 @@ class Hint(object):
 
     @classmethod
     def from_dict(cls, d):
-        return cls(**{k: v for k,v in d.items() if not k.startswith("@")})
+        return cls(**{k: v for k, v in d.items() if not k.startswith("@")})
 
 
 def _dict_from_lines(lines, key_nums, sep=None):
