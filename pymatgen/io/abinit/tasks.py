@@ -3712,40 +3712,47 @@ class EphTask(AbinitTask):
         """Replace the default behaviour of make_links"""
 
         for dep in self.deps:
-            if dep.exts == ["1DEN"]:
-                phonon_task = dep.node
+            for d in dep.exts:
+                if d == "DVDB":
+                    phonon_task = dep.node
+                    out_dvddb = phonon_task.outdir.has_abiext("DVDB")
+                    in_dvddb  = self.indir.path_in('in_DVDB')
+                    os.symlink(out_dvddb, in_dvddb)
 
-                # Get (fortran) idir and costruct the name of the 1WF expected by Abinit
-                rfdir   = list(phonon_task.input["rfdir"])
-                rfatpol = list(phonon_task.input["rfatpol"])
+                elif d == "DDB":
+                    phonon_task = dep.node
+                    out_ddb = phonon_task.outdir.has_abiext("DDB")
+                    in_ddb  = self.indir.path_in('in_DDB')
+                    os.symlink(out_ddb, in_ddb)
 
-                #TODO: check if only one atoms is perturbed
-                if rfatpol[0] != rfatpol[1]:
-                    raise RuntimeError("Only one atom should be specifned in rfdir but rfatpol is %d %d" % tuple(rfatpol) )
-                rfatpol = rfatpol[0]-1
- 
-                if rfdir.count(1) != 1:
-                    raise RuntimeError("Only one direction should be specifned in rfdir but rfdir = %s" % rfdir)
+                elif d == "WFK":
+                    nscf_task = dep.node
 
-                idir = rfdir.index(1) + 1
-                natoms = len(phonon_task.input.structure)
-                den_case = idir +  3 * rfatpol 
+                    #get out
+                    out_WFK = nscf_task.outdir.has_abiext("WFK")
+                    if not out_WFK:
+                        raise RuntimeError("%s didn't produce the WFK file" % nscf_task)
+                    #get in
+                    in_WFK  = self.indir.path_in('in_WFK')
+                    
+                    os.symlink(out_WFK, in_WFK)
 
-                #super bad practice but I dont care
-                out_den = dep.node.outdir.path_in("out_DEN%d.nc" % den_case)
-                infile = self.indir.path_in("in_DEN.nc")
-                os.symlink(out_den, infile)
+                elif d == "WFQ":
+                    nscf_task = dep.node
 
-            elif dep.exts == ["WFK"]:
-                gs_task = dep.node
-                out_wfk = gs_task.outdir.has_abiext("WFK")
-                if not out_wfk:
-                    raise RuntimeError("%s didn't produce the WFK file" % gs_task)
+                    #get out
+                    out_WFQ = nscf_task.outdir.has_abiext("WFQ")
+                    if not out_WFQ:
+                        out_WFQ = nscf_task.outdir.has_abiext("WFK")
+                    if not out_WFQ:
+                        raise RuntimeError("%s didn't produce the WFQ neither a WFK file" % nscf_task)
+                    #get in
+                    in_WFQ = self.indir.path_in('in_WFQ')
 
-                os.symlink(out_wfk, self.indir.path_in("in_WFK.nc"))
+                    os.symlink(out_WFQ, in_WFQ)
 
-            else:
-                raise ValueError("Don't know how to handle extension: %s" % dep.exts)
+                else:
+                    raise ValueError("Don't know how to handle extension: %s" % dep.exts)
 
 class ManyBodyTask(AbinitTask):
     """

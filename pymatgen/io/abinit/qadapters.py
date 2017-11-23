@@ -1221,6 +1221,7 @@ class SlurmAdapter(QueueAdapter):
 #SBATCH --ntasks-per-node=$${ntasks_per_node}
 #SBATCH --cpus-per-task=$${cpus_per_task}
 #####SBATCH --mem=$${mem}
+#SBATCH --qos=$${qos}
 #SBATCH --mem-per-cpu=$${mem_per_cpu}
 #SBATCH --hint=$${hint}
 #SBATCH --time=$${time}
