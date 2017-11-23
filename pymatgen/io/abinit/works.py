@@ -27,7 +27,7 @@ from . import wrappers
 from .nodes import Dependency, Node, NodeError, NodeResults, check_spectator
 from .tasks import (Task, AbinitTask, ScfTask, NscfTask, DfptTask, PhononTask, DdkTask,
                     BseTask, RelaxTask, DdeTask, BecTask, ScrTask, SigmaTask,
-                    DteTask, EphTask, CollinearThenNonCollinearScfTask)
+                    DteTask, DfptEphTask, EphTask, CollinearThenNonCollinearScfTask)
 
 from .utils import Directory
 from .netcdf import ETSF_Reader, NetcdfReader
@@ -337,6 +337,11 @@ class NodeContainer(six.with_metaclass(abc.ABCMeta)):
     def register_eph_task(self, *args, **kwargs):
         """Register an electron-phonon task."""
         kwargs["task_class"] = EphTask
+        return self.register_task(*args, **kwargs)
+
+    def register_dfpteph_task(self, *args, **kwargs):
+        """Register an electron-phonon task."""
+        kwargs["task_class"] = DfptEphTask
         return self.register_task(*args, **kwargs)
 
     def walknset_vars(self, task_class=None, *args, **kwargs):

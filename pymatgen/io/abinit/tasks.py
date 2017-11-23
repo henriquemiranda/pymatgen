@@ -55,6 +55,7 @@ __all__ = [
     "SigmaTask",
     "OpticTask",
     "AnaddbTask",
+    "DfptEphTask",
     "EphTask",
 ]
 
