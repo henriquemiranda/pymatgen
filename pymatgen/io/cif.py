@@ -37,6 +37,12 @@ from pymatgen.electronic_structure.core import Magmom
 from pymatgen.core.operations import MagSymmOp
 from pymatgen.symmetry.maggroups import MagneticSpaceGroup
 
+try:
+    from pybtex.database import BibliographyData, Entry
+except ImportError:
+    warnings.warn("Please install optional dependency pybtex if you"
+                  "want to extract references from CIF files.")
+
 """
 Wrapper classes for Cif input and output from Structures.
 """
@@ -488,10 +494,16 @@ class CifParser(object):
             # CIF-1 style has all underscores, interim standard
             # had period before magn instead of before the final
             # component (e.g. xyz)
+            # we want to standardize on a specific key, to simplify
+            # parsing code
             correct_keys = ["_space_group_symop_magn_operation.xyz",
                             "_space_group_symop_magn_centering.xyz",
                             "_space_group_magn.name_BNS",
-                            "_space_group_magn.number_BNS"]
+                            "_space_group_magn.number_BNS",
+                            "_atom_site_moment_crystalaxis_x",
+                            "_atom_site_moment_crystalaxis_y",
+                            "_atom_site_moment_crystalaxis_z",
+                            "_atom_site_moment_label"]
 
             # cannot mutate OrderedDict during enumeration,
             # so store changes we want to make
@@ -523,7 +535,7 @@ class CifParser(object):
 
         return data
 
-    def _unique_coords(self, coords_in, magmoms_in=None):
+    def _unique_coords(self, coords_in, magmoms_in=None, lattice=None):
         """
         Generate unique coordinates using coord and symmetry positions
         and also their corresponding magnetic moments, if supplied.
@@ -531,7 +543,6 @@ class CifParser(object):
         coords = []
         if magmoms_in:
             magmoms = []
-            magmoms_in = [Magmom(magmom) for magmom in magmoms_in]
             if len(magmoms_in) != len(coords_in):
                 raise ValueError
             for tmp_coord, tmp_magmom in zip(coords_in, magmoms_in):
@@ -539,9 +550,15 @@ class CifParser(object):
                     coord = op.operate(tmp_coord)
                     coord = np.array([i - math.floor(i) for i in coord])
                     if isinstance(op, MagSymmOp):
-                        magmom = Magmom(op.operate_magmom(tmp_magmom.moment))
+                        # Up to this point, magmoms have been defined relative
+                        # to crystal axis. Now convert to Cartesian and into
+                        # a Magmom object.
+                        magmom = Magmom.from_moment_relative_to_crystal_axes(
+                            op.operate_magmom(tmp_magmom),
+                            lattice=lattice
+                        )
                     else:
-                        magmom = tmp_magmom
+                        magmom = Magmom(tmp_magmom)
                     if not in_coord_list_pbc(coords, coord,
                                              atol=self._site_tolerance):
                         coords.append(coord)
@@ -788,11 +805,11 @@ class CifParser(object):
         try:
             magmoms = {
                 data["_atom_site_moment_label"][i]:
-                    Magmom.from_moment_relative_to_crystal_axes(
+                    np.array(
                         [str2float(data["_atom_site_moment_crystalaxis_x"][i]),
                          str2float(data["_atom_site_moment_crystalaxis_y"][i]),
-                         str2float(data["_atom_site_moment_crystalaxis_z"][i])],
-                        lattice)
+                         str2float(data["_atom_site_moment_crystalaxis_z"][i])]
+                    )
                 for i in range(len(data["_atom_site_moment_label"]))
             }
         except (ValueError, KeyError):
@@ -884,7 +901,8 @@ class CifParser(object):
             x = str2float(data["_atom_site_fract_x"][i])
             y = str2float(data["_atom_site_fract_y"][i])
             z = str2float(data["_atom_site_fract_z"][i])
-            magmom = magmoms.get(data["_atom_site_label"][i], Magmom(0))
+            magmom = magmoms.get(data["_atom_site_label"][i],
+                                 np.array([0, 0, 0]))
 
             try:
                 occu = str2float(data["_atom_site_occupancy"][i])
@@ -940,7 +958,8 @@ class CifParser(object):
 
                 if self.feature_flags["magcif"]:
                     coords, magmoms = self._unique_coords(tmp_coords,
-                                                          tmp_magmom)
+                                                          magmoms_in=tmp_magmom,
+                                                          lattice=lattice)
                 else:
                     coords, magmoms = self._unique_coords(tmp_coords)
 
@@ -1017,58 +1036,57 @@ class CifParser(object):
             raise ValueError("Invalid cif file with no structures!")
         return structures
 
-    def get_bibtex_strings(self):
+    def get_bibtex_string(self):
         """
-        (Beta) Get BibTeX reference from CIF file.
+        Get BibTeX reference from CIF file.
         :param data:
         :return: BibTeX string
         """
 
+        bibtex_keys = {'author': ('_publ_author_name', '_citation_author_name'),
+                       'title': ('_publ_section_title', '_citation_title'),
+                       'journal': ('_journal_name_full', '_journal_name_abbrev',
+                                   '_citation_journal_full', '_citation_journal_abbrev'),
+                       'volume': ('_journal_volume', '_citation_journal_volume'),
+                       'year': ('_journal_year', '_citation_year'),
+                       'number': ('_journal_number', '_citation_number'),
+                       'page_first': ('_journal_page_first', '_citation_page_first'),
+                       'page_last': ('_journal_page_last', '_citation_page_last'),
+                       'doi': ('_journal_DOI', '_citation_DOI')}
+
+        entries = {}
+
+        # TODO: parse '_publ_section_references' when it exists?
         # TODO: CIF specification supports multiple citations.
 
-        bibtex_strs = []
+        for idx, data in enumerate(self._cif.data.values()):
 
-        for d in self._cif.data.values():
+            # convert to lower-case keys, some cif files inconsistent
+            data = {k.lower(): v for k, v in data.data.items()}
 
-            bibtex_entry = {'authors': '_citation_author_name',
-                            'title': '_citation_title',
-                            'journal': '_citation_journal_abbrev',
-                            'volume': '_citation_journal_volume',
-                            'year': '_citation_year',
-                            'number': '_citation_number',
-                            'page_first': '_citation_page_first',
-                            'page_last': '_citation_page_last',
-                            'doi': '_citation_DOI'}
+            bibtex_entry = {}
 
-            for field, tag in bibtex_entry.items():
-                try:
-                    bibtex_entry[field] = d[tag]
-                except:
-                    bibtex_entry[field] = "?"
+            for field, tags in bibtex_keys.items():
+                for tag in tags:
+                    if tag in data:
+                        bibtex_entry[field] = data[tag]
 
-            bibtex_entry['key'] = bibtex_entry['authors'][0].split(',')[
-                                      0] + ":" + bibtex_entry['year']
-            bibtex_entry['key'] = ''.join(bibtex_entry['key'].split())
-            bibtex_entry['authors'] = " and ".join(bibtex_entry['authors'])
-            bibtex_entry['pages'] = "{0}--{1}".format(
-                bibtex_entry['page_first'], bibtex_entry['page_last'])
+            # convert to bibtex author format ('and' delimited)
+            if 'author' in bibtex_entry:
+                bibtex_entry['author'] = ' and '.join(bibtex_entry['author'])
 
-            for field, entry in bibtex_entry.items():
-                if field is not 'key':
-                    bibtex_entry[field] = "{" + entry + "}"
+            # convert to bibtex page range format, use empty string if not specified
+            if ('page_first' in bibtex_entry) or ('page_last' in bibtex_entry):
+                bibtex_entry['pages'] = '{0}--{1}'.format(bibtex_entry.get('page_first', ''),
+                                                          bibtex_entry.get('page_last', ''))
+                bibtex_entry.pop('page_first', None)  # and remove page_first, page_list if present
+                bibtex_entry.pop('page_last', None)
 
-            bibtex_str = ("""{key},
-    author = {authors},
-    title = {title},
-    journal = {journal},
-    year = {year},
-    volume = {volume},
-    number = {number},
-    pages = {pages},
-    doi = {doi}""".format(**bibtex_entry))
-            bibtex_strs.append("@article{" + bibtex_str + "\n}")
 
-        return bibtex_strs
+            # cite keys are given as cif-reference-idx in order they are found
+            entries['cif-reference-{}'.format(idx)] = Entry('article', list(bibtex_entry.items()))
+
+        return BibliographyData(entries).to_string(bib_format='bibtex')
 
     def as_dict(self):
         d = OrderedDict()
@@ -1125,7 +1143,7 @@ class CifWriter(object):
         block["_symmetry_Int_Tables_number"] = spacegroup[1]
         block["_chemical_formula_structural"] = no_oxi_comp.reduced_formula
         block["_chemical_formula_sum"] = no_oxi_comp.formula
-        block["_cell_volume"] = latt.volume.__str__()
+        block["_cell_volume"] = "%.8f" % latt.volume
 
         reduced_comp, fu = no_oxi_comp.get_reduced_composition_and_factor()
         block["_cell_formula_units_Z"] = str(int(fu))
@@ -1195,9 +1213,9 @@ class CifWriter(object):
                             magmom, latt)
                         atom_site_moment_label.append(
                             "{}{}".format(sp.symbol, count))
-                        atom_site_moment_crystalaxis_x.append(moment[0])
-                        atom_site_moment_crystalaxis_y.append(moment[1])
-                        atom_site_moment_crystalaxis_z.append(moment[2])
+                        atom_site_moment_crystalaxis_x.append("%.5f" % moment[0])
+                        atom_site_moment_crystalaxis_y.append("%.5f" % moment[1])
+                        atom_site_moment_crystalaxis_z.append("%.5f" % moment[2])
 
                     count += 1
         else:
