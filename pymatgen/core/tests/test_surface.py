@@ -139,7 +139,7 @@ class SlabTest(PymatgenTest):
 
     def test_symmetrization(self):
 
-        # Restricted to elemental materials due to the risk of
+        # Restricted to primitive_elemental materials due to the risk of
         # broken stoichiometry. For compound materials, use is_polar()
 
         # Get all slabs for P6/mmm Ti and Fm-3m Ag up to index of 2
@@ -428,7 +428,7 @@ class SlabGeneratorTest(PymatgenTest):
         for slab in slabs:
             self.assertTrue(slab.is_symmetric())
 
-        # For a low symmetry elemental system such as
+        # For a low symmetry primitive_elemental system such as
         # R-3m, there should be some nonsymmetric slabs
         # without using nonstoichiometric_symmetrized_slab
         slabs = generate_all_slabs(self.Dy, 1, 30, 30,
@@ -482,6 +482,12 @@ class ReconstructionGeneratorTests(PymatgenTest):
         self.assertEqual(len(slab), len(recon_slab)+2)
         self.assertTrue(recon_slab.is_symmetric())
 
+        # Test if the ouc corresponds to the reconstructed slab
+        recon_ouc = recon_slab.oriented_unit_cell
+        ouc = slab.oriented_unit_cell
+        self.assertEqual(ouc.lattice.b*2, recon_ouc.lattice.b)
+        self.assertEqual(len(ouc)*2, len(recon_ouc))
+
         # Test a reconstruction where we simply add atoms
         recon = ReconstructionGenerator(self.Ni, 10, 10,
                                         "fcc_111_adatom_t_1x1")
@@ -507,7 +513,7 @@ class ReconstructionGeneratorTests(PymatgenTest):
         self.assertTrue(recon_slab.is_symmetric())
 
         # Test a reconstruction where terminations give
-        # different reconstructions with a non-elemental system
+        # different reconstructions with a non-primitive_elemental system
 
     def test_get_d(self):
 

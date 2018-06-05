@@ -1,11 +1,6 @@
 Change log
 ==========
 
-v2018.2.13
+v2018.5.22
 ----------
-* Improved chemenv parameters and bug fixes (David Waroquiers).
-* Improved Qchem IO (Shyam).
-* Improved interfacial reactions.
-* local_env update (Nils).
-* Improved ABINIT support (@gmatteo).
 * Misc bug fixes.

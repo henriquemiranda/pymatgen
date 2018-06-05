@@ -33,8 +33,8 @@ def freq_units(units):
          "ev": FreqUnits(const.value("hertz-electron volt relationship") * const.tera, "eV"),
          "mev": FreqUnits(const.value("hertz-electron volt relationship") * const.tera / const.milli, "meV"),
          "ha": FreqUnits(const.value("hertz-hartree relationship") * const.tera, "Ha"),
-         "cm-1": FreqUnits(const.value("hertz-inverse meter relationship") * const.tera * const.centi, "cm$^{-1}$"),
-         'cm^-1': FreqUnits(const.value("hertz-inverse meter relationship") * const.tera * const.centi, "cm$^{-1}$")
+         "cm-1": FreqUnits(const.value("hertz-inverse meter relationship") * const.tera * const.centi, "cm^{-1}"),
+         'cm^-1': FreqUnits(const.value("hertz-inverse meter relationship") * const.tera * const.centi, "cm^{-1}")
          }
     try:
         return d[units.lower().strip()]
@@ -165,7 +165,7 @@ class PhononDosPlotter(object):
                 plt.fill(frequencies, densities, color=colors[i % ncolors],
                          label=str(key))
             else:
-                ppl.plot(frequencies, densities, color=colors[i % ncolors],
+                plt.plot(frequencies, densities, color=colors[i % ncolors],
                          label=str(key), linewidth=3)
 
         if xlim:
@@ -181,8 +181,8 @@ class PhononDosPlotter(object):
         ylim = plt.ylim()
         plt.plot([0, 0], ylim, 'k--', linewidth=2)
 
-        plt.xlabel('Frequencies ({})'.format(u.label))
-        plt.ylabel('Density of states')
+        plt.xlabel(r'$\mathrm{{Frequencies\ ({})}}$'.format(u.label))
+        plt.ylabel(r'$\mathrm{Density\ of\ states}$')
 
         plt.legend()
         leg = plt.gca().get_legend()
@@ -350,7 +350,7 @@ class PhononBSPlotter(object):
 
         # Main X and Y Labels
         plt.xlabel(r'$\mathrm{Wave\ Vector}$', fontsize=30)
-        ylabel = r'Frequency ({})'.format(u.label)
+        ylabel = r'$\mathrm{{Frequencies\ ({})}}$'.format(u.label)
         plt.ylabel(ylabel, fontsize=30)
 
         # X range (K)
@@ -605,9 +605,9 @@ class ThermoPlotter(object):
         temperatures = np.linspace(tmin, tmax, ntemp)
 
         if self.structure:
-            ylabel = r"$\Delta E$ (kJ/K/mol)"
+            ylabel = r"$\Delta E$ (kJ/mol)"
         else:
-            ylabel = r"$\Delta E$ (kJ/K/mol-c)"
+            ylabel = r"$\Delta E$ (kJ/mol-c)"
 
         fig = self._plot_thermo(self.dos.internal_energy, temperatures, ylabel=ylabel, ylim=ylim,
                                 factor=1e-3, **kwargs)
@@ -631,9 +631,9 @@ class ThermoPlotter(object):
         temperatures = np.linspace(tmin, tmax, ntemp)
 
         if self.structure:
-            ylabel = r"$\Delta F$ (kJ/K/mol)"
+            ylabel = r"$\Delta F$ (kJ/mol)"
         else:
-            ylabel = r"$\Delta F$ (kJ/K/mol-c)"
+            ylabel = r"$\Delta F$ (kJ/mol-c)"
 
         fig = self._plot_thermo(self.dos.helmholtz_free_energy, temperatures, ylabel=ylabel, ylim=ylim,
                                 factor=1e-3, **kwargs)

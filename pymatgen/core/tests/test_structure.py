@@ -17,6 +17,9 @@ import random
 import os
 import numpy as np
 
+test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..",
+                        'test_files')
+
 
 class IStructureTest(PymatgenTest):
 
@@ -589,7 +592,7 @@ class StructureTest(PymatgenTest):
         coords = [[0, 0, 0],
                   [0.5, 0.5, 0.5]]
         nio = Structure.from_spacegroup(225, latt, species, coords)
-        
+
         # should do nothing, but not fail
         nio.remove_spin()
 
@@ -663,6 +666,22 @@ class StructureTest(PymatgenTest):
                                        frac_coords=True, to_unit_cell=False)
         self.assertArrayAlmostEqual(self.structure.frac_coords[0],
                                     [1.00187517, 1.25665291, 1.15946374])
+
+    def test_rotate_sites(self):
+        self.structure.rotate_sites(indices=[1],
+                                    theta=2.*np.pi/3.,
+                                    anchor=self.structure.sites[0].coords,
+                                    to_unit_cell=False)
+        self.assertArrayAlmostEqual(self.structure.frac_coords[1],
+                                    [-1.25, 1.5, 0.75],
+                                    decimal=6)
+        self.structure.rotate_sites(indices=[1],
+                                    theta=2.*np.pi/3.,
+                                    anchor=self.structure.sites[0].coords,
+                                    to_unit_cell=True)
+        self.assertArrayAlmostEqual(self.structure.frac_coords[1],
+                                    [0.75, 0.5, 0.75],
+                                    decimal=6)
 
     def test_mul(self):
         self.structure *= [2, 1, 1]
@@ -761,7 +780,11 @@ class StructureTest(PymatgenTest):
         self.assertRaises(ValueError, Structure.from_spacegroup,
                           "Pm-3m", Lattice.cubic(3), ["Cs"],
                           [[0, 0, 0], [0.5, 0.5, 0.5]])
-    
+        from fractions import Fraction
+        s = Structure.from_spacegroup(139, np.eye(3), ["H"], [
+            [Fraction(1, 2), Fraction(1, 4), Fraction(0)]])
+        self.assertEqual(len(s), 8)
+
     def test_from_magnetic_spacegroup(self):
 
         # AFM MnF
@@ -881,6 +904,32 @@ class StructureTest(PymatgenTest):
         self.assertIn("Overall Charge: +1", str(s),"String representation not adding charge")
         sorted_s = super_cell.get_sorted_structure()
         self.assertEqual(sorted_s.charge,27,"Overall charge is not properly copied during structure sorting")
+
+    def test_vesta_lattice_matrix(self):
+        silica_zeolite = Molecule.from_file(os.path.join(test_dir, "CON_vesta.xyz"))
+
+        s_vesta = Structure(
+            lattice=Lattice.from_parameters(22.6840, 13.3730, 12.5530, 90, 69.479, 90, True),
+            species=silica_zeolite.species,
+            coords=silica_zeolite.cart_coords,
+            coords_are_cartesian=True,
+            to_unit_cell=True
+        )
+
+        s_vesta = s_vesta.get_primitive_structure()
+        s_vesta.merge_sites(0.01, 'delete')
+        self.assertEqual(s_vesta.formula, 'Si56 O112')
+
+        broken_s = Structure(
+            lattice=Lattice.from_parameters(22.6840, 13.3730, 12.5530, 90, 69.479, 90),
+            species=silica_zeolite.species,
+            coords=silica_zeolite.cart_coords,
+            coords_are_cartesian=True,
+            to_unit_cell=True
+        )
+
+        broken_s.merge_sites(0.01, 'delete')
+        self.assertEqual(broken_s.formula, 'Si56 O134')
 
 
 class IMoleculeTest(PymatgenTest):
