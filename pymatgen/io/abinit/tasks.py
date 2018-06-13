@@ -3344,14 +3344,23 @@ class NscfTask(GsTask):
             raise RuntimeError("Cannot find parent node producing DEN file")
 
         with parent_task.open_gsr() as gsr:
-            den_mesh = 3 * [None]
-            den_mesh[0] = gsr.reader.read_dimvalue("number_of_grid_points_vector1")
-            den_mesh[1] = gsr.reader.read_dimvalue("number_of_grid_points_vector2")
-            den_mesh[2] = gsr.reader.read_dimvalue("number_of_grid_points_vector3")
-            if self.ispaw:
-                self.set_vars(ngfftdg=den_mesh)
+            if hasattr(gsr,"reader"):
+                den_mesh = 3 * [None]
+                den_mesh[0] = gsr.reader.read_dimvalue("number_of_grid_points_vector1")
+                den_mesh[1] = gsr.reader.read_dimvalue("number_of_grid_points_vector2")
+                den_mesh[2] = gsr.reader.read_dimvalue("number_of_grid_points_vector3")
+                if self.ispaw:
+                    self.set_vars(ngfftdg=den_mesh)
+                else:
+                    self.set_vars(ngfft=den_mesh)
+            elif (gsr.filetype == 'DensityFortranFile'):
+                den = gsr.get_density()
+                if self.ispaw:
+                    self.set_vars(ngfftdg=den.mesh.shape)
+                else:
+                    self.set_vars(ngfft=den.mesh.shape)
             else:
-                self.set_vars(ngfft=den_mesh)
+                cprint("WARNING: Could not read FFT mesh from parent file: %s"%gsr, "yellow")
 
         super(NscfTask, self).setup()
 
