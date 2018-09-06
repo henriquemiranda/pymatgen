@@ -373,6 +373,20 @@ class VasprunTest(unittest.TestCase):
                 {"Si": ["s"]})
             self.assertAlmostEqual(projected[Spin.up][0][0]["Si"]["s"], 0.4238)
 
+            # test hybrid band structures
+            vasprun.actual_kpoints_weights[-1] = 0.
+            bs = vasprun.get_band_structure(kpoints_filename=os.path.join(test_dir,
+                                                                          'KPOINTS_Si_bands'))
+            cbm = bs.get_cbm()
+            vbm = bs.get_vbm()
+            self.assertEqual(cbm['kpoint_index'], [0])
+            self.assertAlmostEqual(cbm['energy'], 6.3676)
+            self.assertEqual(cbm['kpoint'].label, None)
+            self.assertEqual(vbm['kpoint_index'], [0])
+            self.assertAlmostEqual(vbm['energy'], 2.8218)
+            self.assertEqual(vbm['kpoint'].label, None)
+
+
     def test_sc_step_overflow(self):
         filepath = os.path.join(test_dir, 'vasprun.xml.sc_overflow')
         # with warnings.catch_warnings(record=True) as w:
@@ -480,6 +494,13 @@ class VasprunTest(unittest.TestCase):
         self.assertEqual(vasprun.parameters.get("NELECT", 8), 9)
         self.assertEqual(vasprun.structures[0].charge, 1)
 
+        vpath = os.path.join(test_dir, 'vasprun.split.charged.xml')
+        potcar_path = os.path.join(test_dir, 'POTCAR.split.charged.gz')
+        vasprun = Vasprun(vpath, parse_potcar_file=False)
+        vasprun.update_charge_from_potcar(potcar_path)
+        self.assertEqual(vasprun.parameters.get('NELECT', 0), 7)
+        self.assertEqual(vasprun.structures[-1].charge, 1)
+
 
 class OutcarTest(PymatgenTest):
 
@@ -525,7 +546,6 @@ class OutcarTest(PymatgenTest):
         filepath = os.path.join(test_dir, 'OUTCAR.stopped')
         outcar = Outcar(filepath)
         self.assertTrue(outcar.is_stopped)
-
         for f in ['OUTCAR.lepsilon', 'OUTCAR.lepsilon.gz']:
             filepath = os.path.join(test_dir, f)
             outcar = Outcar(filepath)
@@ -548,6 +568,12 @@ class OutcarTest(PymatgenTest):
             self.assertAlmostEqual(outcar.piezo_ionic_tensor[2][5], 0.06242)
             self.assertAlmostEqual(outcar.born[0][1][2], -0.385)
             self.assertAlmostEqual(outcar.born[1][2][0], 0.36465)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[0][0][0], -572.5437,places=4)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[0][1][0], 683.2985,places=4)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[0][1][3], 73.07059,places=4)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[1][0][0], 570.98927,places=4)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[1][1][0], -683.68519,places=4)
+            self.assertAlmostEqual(outcar.internal_strain_tensor[1][2][2], 570.98927,places=4)
 
         filepath = os.path.join(test_dir, 'OUTCAR.NiO_SOC.gz')
         outcar = Outcar(filepath)
@@ -1095,8 +1121,13 @@ class WavecarTest(unittest.TestCase):
         self.assertEqual(self.w.band_energy[0].shape, (self.w.nb, 3))
         self.assertLessEqual(len(self.w.Gpoints[0]), 257)
 
-        with self.assertRaises(ValueError):
-            Wavecar(os.path.join(test_dir, 'WAVECAR.N2.spin'))
+        self.w = Wavecar(os.path.join(test_dir, 'WAVECAR.N2.spin'))
+        self.assertEqual(len(self.w.coeffs), 2)
+        self.assertEqual(len(self.w.band_energy), 2)
+        self.assertEqual(len(self.w.kpoints), self.w.nk)
+        self.assertEqual(len(self.w.Gpoints), self.w.nk)
+        self.assertEqual(len(self.w.coeffs[0][0]), self.w.nb)
+        self.assertEqual(len(self.w.band_energy[0]), self.w.nk)
 
         temp_ggp = Wavecar._generate_G_points
         try:

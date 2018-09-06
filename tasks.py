@@ -126,6 +126,20 @@ def contribute_dash(ctx):
         ctx.run('git push')
     ctx.run("rm pymatgen.tgz")
 
+@task
+def submit_dash_pr(ctx):
+    with cd("../Dash-User-Contributions/docsets/pymatgen"):
+
+        payload = {
+          "title": "Update pymatgen docset to v%s" % NEW_VER,
+          "body": "Update pymatgen docset to v%s" % NEW_VER,
+          "head": "Dash-User-Contributions:master",
+          "base": "master"
+        }
+        response = requests.post(
+            "https://api.github.com/repos/materialsvirtuallab/Dash-User-Contributions/pulls",
+            data=json.dumps(payload))
+        print(response.text)
 
 @task
 def update_doc(ctx):
@@ -140,7 +154,7 @@ def update_doc(ctx):
 def publish(ctx):
     ctx.run("rm dist/*.*", warn=True)
     ctx.run("python setup.py sdist bdist_wheel")
-    ctx.run("twine upload dist/*")
+    ctx.run("twine upload -u Shyue.Ping.Ong dist/*")
 
 
 @task
@@ -239,7 +253,7 @@ def release(ctx, notest=False):
         ctx.run("nosetests")
     publish(ctx)
     log_ver(ctx)
-    update_doc(ctx)
+    # update_doc(ctx)
     merge_stable(ctx)
     release_github(ctx)
 

@@ -1,9 +1,6 @@
 Change log
 ==========
 
-v2018.6.11
+v2018.8.10
 ----------
-* Updates to ABINIT support for 8.1.3
-* Updates to Interface analyzer.
-* Fix bug in deserialization of ComputedStructureEntry.
-* Misc bug fixes.
+* Bug fix for pymatgen.analysis.gb and pymatgen.io.lammps.

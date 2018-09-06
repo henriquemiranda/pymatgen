@@ -97,12 +97,12 @@ as Python 3.x.
 setup(
     name="pymatgen",
     packages=find_packages(),
-    version="2018.6.11",
+    version="2018.9.1",
     cmdclass={'build_ext': build_ext},
     setup_requires=['numpy>=1.14.3', 'setuptools>=18.0'],
     install_requires=["numpy>=1.14.3", "six", "requests", "ruamel.yaml>=0.15.6",
                       "monty>=0.9.6", "scipy>=1.0.1", "pydispatcher>=2.0.5",
-                      "tabulate", "spglib>=1.9.9.44",
+                      "tabulate", "spglib>=1.9.9.44", "networkx>=2.1",
                       "matplotlib>=1.5", "palettable>=2.1.1", "sympy", "pandas"],
     extras_require={
         ':python_version == "2.7"': [
@@ -119,6 +119,7 @@ setup(
                   "pymatgen.analysis.chemenv.coordination_environments.strategy_files": ["*.json"],
                   "pymatgen.analysis.hhi": ["*.csv"],
                   "pymatgen.io.vasp": ["*.yaml"],
+                  "pymatgen.io.lammps": ["templates/*.*"],
                   "pymatgen.io.feff": ["*.yaml"],
                   "pymatgen.symmetry": ["*.yaml", "*.json"],
                   "pymatgen.entries": ["*.yaml"],
@@ -150,6 +151,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
@@ -173,7 +175,6 @@ setup(
               'feff_plot_dos = pymatgen.cli.feff_plot_dos:main',
               'gaussian_analyzer = pymatgen.cli.gaussian_analyzer:main',
               'get_environment = pymatgen.cli.get_environment:main',
-              'pydii = pymatgen.cli.pydii:main',
           ]
     }
 )
