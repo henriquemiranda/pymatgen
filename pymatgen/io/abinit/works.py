@@ -665,6 +665,9 @@ class Work(BaseWork, NodeContainer):
         if hasattr(self, "workdir"):
             task_workdir = os.path.join(self.workdir, "t" + str(len(self)))
 
+        if manager is None and hasattr(self,'manager'):
+            manager = self.manager
+
         if isinstance(obj, Task):
             task = obj
 
