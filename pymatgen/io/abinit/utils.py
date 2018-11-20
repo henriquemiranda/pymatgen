@@ -476,6 +476,7 @@ _EXT2VARS = {
     "BSC": {"irdbscoup": 1},
     "HAYDR_SAVE": {"irdhaydock": 1},
     "DDK": {"irdddk": 1},
+    "WFKFINE": {"irdwfkfine": 1},
     "DDB": {},
     "DVDB": {},
     "GKK": {},

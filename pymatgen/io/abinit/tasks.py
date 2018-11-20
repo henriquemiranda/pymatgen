@@ -2122,8 +2122,9 @@ class Task(six.with_metaclass(abc.ABCMeta, Node)):
             filepaths, exts = dep.get_filepaths_and_exts()
 
             for path, ext in zip(filepaths, exts):
-                logger.info("Need path %s with ext %s" % (path, ext))
                 dest = self.ipath_from_ext(ext)
+                if ext == 'WFKFINE': path = path.replace('WFKFINE','WFK')
+                logger.info("Need path %s with ext %s" % (path, ext))
 
                 if not os.path.exists(path):
                     # Try netcdf file.
