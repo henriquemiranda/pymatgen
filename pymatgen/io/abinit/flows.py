@@ -2164,7 +2164,7 @@ class Flow(Node, NodeContainer, MSONable):
         def any2bytes(s):
             """Convert string or number to memory in bytes."""
             if is_string(s):
-                return int(Memory.from_string(s).to("b"))
+                return int(Memory.from_string(s).to("byte"))
             else:
                 return int(s)
 
@@ -2216,7 +2216,7 @@ class Flow(Node, NodeContainer, MSONable):
         import tarfile
         name = os.path.basename(self.workdir) + ".tar.gz" if name is None else name
         with tarfile.open(name=name, mode='w:gz', **kwargs) as tar:
-            tar.add(os.path.basename(self.workdir), arcname=None, recursive=True, exclude=None, filter=filter)
+            tar.add(os.path.basename(self.workdir), arcname=None, recursive=True, filter=filter)
 
             # Add the script used to generate the flow.
             if self.pyfile is not None and os.path.exists(self.pyfile):
